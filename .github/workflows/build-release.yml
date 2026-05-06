@@ -12,20 +12,20 @@ env:
 
 jobs:
   release:
-    name: Build for ${{ matrix.arch }} (${{ matrix.id }})
+    name: Build for ${{ matrix.distro }} ${{ matrix.version }} (${{ matrix.target }}/${{ matrix.subtarget }}, ${{ matrix.arch }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
+        # Qihoo 360T7: ImmortalWrt 24.10.5, mediatek/filogic, ARMv8 Cortex-A53.
         include:
-          - id: 23.05
-            arch: x86_64
-            sdk_url_path: https://downloads.openwrt.org/releases/23.05.5/targets/x86/64
-            sdk_name: -sdk-23.05.5-x86-64_
-          - id: 25.12
-            arch: x86_64
-            sdk_url_path: https://downloads.openwrt.org/releases/25.12.2/targets/x86/64
-            sdk_name: -sdk-25.12.2-x86-64_
+          - distro: immortalwrt
+            version: 24.10.5
+            target: mediatek
+            subtarget: filogic
+            arch: aarch64_cortex-a53
+            sdk_url_path: https://downloads.immortalwrt.org/releases/24.10.5/targets/mediatek/filogic
+            sdk_name: -sdk-24.10.5-mediatek-filogic_
 
     env:
       SDK_URL_PATH: ${{ matrix.sdk_url_path }}
@@ -34,7 +34,7 @@ jobs:
       CONFIG_CCACHE: y
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Prepare Cache Key
         id: cache_key
@@ -46,12 +46,13 @@ jobs:
           path: |
             ${{ env.CACHE_DIR }}
             ${{ env.CCACHE_DIR }}
-          key: openwrt-${{ matrix.arch }}-${{ matrix.id }}-${{ env.PACKAGE_NAME }}-${{ steps.cache_key.outputs.timestamp }}
+          key: ${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.arch }}-${{ env.PACKAGE_NAME }}-${{ steps.cache_key.outputs.timestamp }}
           restore-keys: |
-            openwrt-${{ matrix.arch }}-${{ matrix.id }}-${{ env.PACKAGE_NAME }}-
+            ${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.arch }}-${{ env.PACKAGE_NAME }}-
       - name: Install Dependencies
         run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y ccache gettext libncurses5-dev xsltproc zstd
+          DEBIAN_FRONTEND=noninteractive sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y build-essential ccache curl file gettext libncurses5-dev rsync unzip xsltproc zstd
       - name: Create Directories
         run: |
           CACHE_DIR_SDK="$(eval echo "$CACHE_DIR/sdk")"
@@ -70,13 +71,13 @@ jobs:
       - name: Download and Unzip SDK
         run: |
           cd "$CACHE_DIR_SDK"
-          if ! ( wget -q -O - "$SDK_URL_PATH/sha256sums" | grep -- "$SDK_NAME" > sha256sums.small 2>/dev/null ) ; then
+          if ! ( curl -fsSL "$SDK_URL_PATH/sha256sums" | grep -- "$SDK_NAME" > sha256sums.small 2>/dev/null ) ; then
             echo "::error::Can not find ${SDK_NAME} file in sha256sums."
             exit 1
           fi
           SDK_FILE="$(cat sha256sums.small | cut -d' ' -f2 | sed 's/*//g')"
           if ! sha256sum -c ./sha256sums.small >/dev/null 2>&1 ; then
-            wget -q -O "$SDK_FILE" "$SDK_URL_PATH/$SDK_FILE"
+            curl -fL --retry 3 -o "$SDK_FILE" "$SDK_URL_PATH/$SDK_FILE"
             if ! sha256sum -c ./sha256sums.small >/dev/null 2>&1 ; then
               echo "::error::SDK can not be verified!"
               exit 1
@@ -107,18 +108,19 @@ jobs:
         run: |
           cd "$SDK_HOME"
           make defconfig
-          make package/${PACKAGE_NAME}/status/{clean,compile} V=s
+          make package/${PACKAGE_NAME}/{core,geodata,status}/clean
+          make -j"$(nproc)" package/${PACKAGE_NAME}/{core,geodata,status}/compile V=s || make package/${PACKAGE_NAME}/{core,geodata,status}/compile V=s
           find "$SDK_HOME/bin/" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec ls -lh {} \;
           cd -
       - name: Copy Bin Files
         run: |
           find "$SDK_HOME/bin/" -type f \( -name "${PACKAGE_NAME}*.ipk" -o -name "${PACKAGE_NAME}*.apk" \) | while read -r f; do
             base="$(basename "$f")"
-            cp "$f" "${{ github.workspace }}/${base%.*}-${{ matrix.arch }}.${base##*.}"
+            cp "$f" "${{ github.workspace }}/${base%.*}-${{ matrix.distro }}-${{ matrix.version }}-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.arch }}.${base##*.}"
           done
           find "${{ github.workspace }}" -maxdepth 1 -type f \( -name "*.ipk" -o -name "*.apk" \) -exec ls -lh {} \;
       - name: Release and Upload Assets
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             *.ipk
