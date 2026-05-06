@@ -39,6 +39,7 @@ Fork this repository and:
 * Create a release by pushing a tag
 * Wait until actions finish
 * Use `opkg -i *` to install all ipks from Releases.
+* Release artifacts also include optional translation package `luci-app-xray-zh-cn`.
 
 ## Import nodes and subscriptions
 
