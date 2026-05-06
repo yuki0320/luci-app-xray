@@ -6,6 +6,9 @@ on:
       - "*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
   PACKAGE_NAME: luci-app-xray
   CACHE_DIR: ~/cache
@@ -122,6 +125,8 @@ jobs:
       - name: Release and Upload Assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('manual-{0}-{1}', github.run_number, github.run_attempt) }}
+          target_commitish: ${{ github.sha }}
           files: |
             *.ipk
             *.apk
