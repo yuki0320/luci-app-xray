@@ -1,6 +1,6 @@
 # luci-app-xray
 
-Focus on making the most of Xray (HTTP/HTTPS/Socks/TProxy inbounds, multiple protocols support, DNS server, bridge (reverse proxy), even HTTPS proxy server for actual HTTP services) while keeping thin and elegant.
+Focus on making the most of Xray (HTTP/HTTPS/Socks/TProxy inbounds, multiple protocols support, DNS server, even HTTPS proxy server for actual HTTP services) while keeping thin and elegant.
 
 ## Warnings
 .   
@@ -40,6 +40,16 @@ Fork this repository and:
 * Wait until actions finish
 * Use `opkg -i *` to install all ipks from Releases.
 
+## Import nodes and subscriptions
+
+* Open `Services -> Xray`
+* In `Xray Servers`, click `Import share links` to paste VLESS / VMess / Trojan / Shadowsocks links
+* Open the `Subscriptions` tab to:
+    * Add one or more subscription URLs
+    * Save current settings
+    * Refresh nodes from subscriptions
+    * Remove subscription-managed nodes
+
 ## Enable preview app
 
 Some features are deprecated / unstable so they are placed in preview app. To enable preview app:
@@ -50,6 +60,12 @@ Some features are deprecated / unstable so they are placed in preview app. To en
 
 ## Changelog since 3.7.0
 
+* 2026-05-06 feat: import VLESS / VMess / Trojan / Shadowsocks share links from LuCI
+* 2026-05-06 feat: manage subscription URLs and refresh nodes from subscriptions
+* 2026-05-06 fix: remove legacy reverse config generation for Xray 26+
+* 2026-05-06 fix: stop generating deprecated dns `nonIPQuery` setting
+* 2026-05-06 fix: check runtime status from procd service state
+* 2026-05-06 fix: use `vmess_alter_id` in generated VMess outbounds
 * 2026-01-14 chore: bump version
 * 2026-01-26 fix: typos and hysteria version check
 

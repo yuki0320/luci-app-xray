@@ -146,9 +146,7 @@ export function dns_server_outbounds(proxy) {
     let result = [
         {
             protocol: "dns",
-            settings: {
-                nonIPQuery: "skip"
-            },
+            settings: {},
             streamSettings: {
                 sockopt: {
                     mark: 254

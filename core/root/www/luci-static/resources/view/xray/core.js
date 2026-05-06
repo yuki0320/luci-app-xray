@@ -2,15 +2,349 @@
 'require form';
 'require fs';
 'require network';
+'require rpc';
 'require tools.widgets as widgets';
 'require uci';
+'require ui';
 'require view';
 'require view.xray.protocol as protocol';
 'require view.xray.shared as shared';
 'require view.xray.transport as transport';
 
+const callServiceList = rpc.declare({
+    object: 'service',
+    method: 'list',
+    params: ['name'],
+    expect: { '': {} }
+});
+
 function server_alias(v) {
     return v.alias || v.server + ":" + v.server_port;
+}
+
+function decode_base64(str) {
+    if (!str) {
+        return null;
+    }
+    let normalized = str.trim().replace(/_/g, '/').replace(/-/g, '+');
+    const padding = normalized.length % 4;
+    if (padding) {
+        normalized = normalized + '===='.slice(padding);
+    }
+    try {
+        return atob(normalized);
+    } catch (e) {
+        return null;
+    }
+}
+
+function normalize_transport(type) {
+    switch (type || 'tcp') {
+        case 'tcp':
+        case 'ws':
+        case 'grpc':
+        case 'httpupgrade':
+            return type || 'tcp';
+        case 'http':
+        case 'h2':
+            return 'h2';
+        case 'xhttp':
+        case 'splithttp':
+            return 'splithttp';
+        default:
+            return null;
+    }
+}
+
+function split_csv(value) {
+    if (!value) {
+        return null;
+    }
+    const result = value.split(',').map(v => v.trim()).filter(Boolean);
+    return result.length > 0 ? result : null;
+}
+
+function normalize_list(value) {
+    if (Array.isArray(value)) {
+        return value.filter(Boolean);
+    }
+    return value ? [value] : [];
+}
+
+function decode_label(label) {
+    if (!label) {
+        return null;
+    }
+    try {
+        return decodeURIComponent(label);
+    } catch (e) {
+        return label;
+    }
+}
+
+function finalize_imported_node(config) {
+    if (!config || !config.server || !config.server_port) {
+        return null;
+    }
+    config.server = config.server.replace(/^\[/, '').replace(/\]$/, '');
+    if (!config.alias) {
+        config.alias = `${config.server}:${config.server_port}`;
+    }
+    return config;
+}
+
+function apply_transport_config(config, transport_name, params) {
+    switch (transport_name) {
+        case 'tcp':
+            if (params.get('headerType') === 'http') {
+                config.tcp_guise = 'http';
+                config.http_host = split_csv(params.get('host'));
+                config.http_path = split_csv(params.get('path'));
+            } else {
+                config.tcp_guise = 'none';
+            }
+            break;
+        case 'ws':
+            config.ws_host = params.get('host') ? decodeURIComponent(params.get('host')) : null;
+            config.ws_path = params.get('path') ? decodeURIComponent(params.get('path')) : null;
+            break;
+        case 'grpc':
+            config.grpc_service_name = params.get('serviceName') ? decodeURIComponent(params.get('serviceName')) : null;
+            break;
+        case 'h2':
+            config.h2_host = split_csv(params.get('host'));
+            config.h2_path = params.get('path') ? decodeURIComponent(params.get('path')) : null;
+            break;
+        case 'httpupgrade':
+            config.httpupgrade_host = params.get('host') ? decodeURIComponent(params.get('host')) : null;
+            config.httpupgrade_path = params.get('path') ? decodeURIComponent(params.get('path')) : null;
+            break;
+        case 'splithttp':
+            config.splithttp_host = params.get('host') ? decodeURIComponent(params.get('host')) : null;
+            config.splithttp_path = params.get('path') ? decodeURIComponent(params.get('path')) : null;
+            break;
+    }
+}
+
+function parse_vless_link(link, allow_insecure) {
+    let url;
+    try {
+        url = new URL('http://' + link);
+    } catch (e) {
+        return null;
+    }
+
+    const params = url.searchParams;
+    const transport_name = normalize_transport(params.get('type'));
+    if (!url.username || !transport_name) {
+        return null;
+    }
+
+    const config = {
+        alias: decode_label(url.hash ? url.hash.slice(1) : ''),
+        server: url.hostname,
+        server_port: url.port || '80',
+        protocol: 'vless',
+        password: decodeURIComponent(url.username),
+        transport: transport_name,
+        vless_encryption: params.get('encryption') ? decodeURIComponent(params.get('encryption')) : 'none'
+    };
+
+    switch (params.get('security')) {
+        case 'reality':
+            config.vless_tls = 'reality';
+            config.vless_flow_reality = params.get('flow') || 'none';
+            config.vless_reality_fingerprint = params.get('fp') || 'chrome';
+            config.vless_reality_server_name = params.get('sni') ? decodeURIComponent(params.get('sni')) : null;
+            config.vless_reality_public_key = params.get('pbk') ? decodeURIComponent(params.get('pbk')) : null;
+            config.vless_reality_short_id = params.get('sid') ? decodeURIComponent(params.get('sid')) : null;
+            config.vless_spider_x = params.get('spx') ? decodeURIComponent(params.get('spx')) : null;
+            break;
+        case 'tls':
+        case 'xtls':
+            config.vless_tls = 'tls';
+            config.vless_flow_tls = params.get('flow') || 'none';
+            config.vless_tls_host = params.get('sni') ? decodeURIComponent(params.get('sni')) : null;
+            config.vless_tls_fingerprint = params.get('fp') ? decodeURIComponent(params.get('fp')) : null;
+            config.vless_tls_alpn = split_csv(params.get('alpn'));
+            if (allow_insecure === '1') {
+                config.vless_tls_insecure = '1';
+            }
+            break;
+        default:
+            config.vless_tls = 'none';
+            break;
+    }
+
+    apply_transport_config(config, transport_name, params);
+    return finalize_imported_node(config);
+}
+
+function parse_vmess_link(link, allow_insecure) {
+    if (link.includes('&')) {
+        return null;
+    }
+
+    let raw;
+    try {
+        raw = JSON.parse(decode_base64(link));
+    } catch (e) {
+        return null;
+    }
+
+    const transport_name = normalize_transport(raw.net || 'tcp');
+    if (raw.v !== '2' || !transport_name) {
+        return null;
+    }
+
+    const config = {
+        alias: raw.ps ? decode_label(raw.ps) : null,
+        server: raw.add,
+        server_port: raw.port || '80',
+        protocol: 'vmess',
+        password: raw.id,
+        transport: transport_name,
+        vmess_security: raw.scy || 'auto',
+        vmess_alter_id: raw.aid || '0',
+        vmess_tls: raw.tls === 'tls' ? 'tls' : 'none'
+    };
+
+    if (config.vmess_tls === 'tls') {
+        config.vmess_tls_host = raw.sni || raw.host || null;
+        config.vmess_tls_fingerprint = raw.fp || null;
+        config.vmess_tls_alpn = split_csv(raw.alpn);
+        if (allow_insecure === '1') {
+            config.vmess_tls_insecure = '1';
+        }
+    }
+
+    if (transport_name === 'tcp') {
+        if (raw.type === 'http') {
+            config.tcp_guise = 'http';
+            config.http_host = split_csv(raw.host);
+            config.http_path = split_csv(raw.path);
+        } else {
+            config.tcp_guise = 'none';
+        }
+    } else if (transport_name === 'ws') {
+        config.ws_host = raw.host || null;
+        config.ws_path = raw.path || null;
+    } else if (transport_name === 'grpc') {
+        config.grpc_service_name = raw.path || null;
+    } else if (transport_name === 'h2') {
+        config.h2_host = split_csv(raw.host);
+        config.h2_path = raw.path || null;
+    } else if (transport_name === 'httpupgrade') {
+        config.httpupgrade_host = raw.host || null;
+        config.httpupgrade_path = raw.path || null;
+    } else if (transport_name === 'splithttp') {
+        config.splithttp_host = raw.host || null;
+        config.splithttp_path = raw.path || null;
+    }
+
+    return finalize_imported_node(config);
+}
+
+function parse_trojan_link(link, allow_insecure) {
+    let url;
+    try {
+        url = new URL('http://' + link);
+    } catch (e) {
+        return null;
+    }
+
+    const params = url.searchParams;
+    const transport_name = normalize_transport(params.get('type'));
+    if (!url.username || !transport_name) {
+        return null;
+    }
+
+    const config = {
+        alias: decode_label(url.hash ? url.hash.slice(1) : ''),
+        server: url.hostname,
+        server_port: url.port || '443',
+        protocol: 'trojan',
+        password: decodeURIComponent(url.username),
+        transport: transport_name,
+        trojan_tls: 'tls',
+        trojan_tls_host: params.get('sni') ? decodeURIComponent(params.get('sni')) : null,
+        trojan_tls_fingerprint: params.get('fp') ? decodeURIComponent(params.get('fp')) : null,
+        trojan_tls_alpn: split_csv(params.get('alpn'))
+    };
+
+    if (allow_insecure === '1') {
+        config.trojan_tls_insecure = '1';
+    }
+
+    apply_transport_config(config, transport_name, params);
+    return finalize_imported_node(config);
+}
+
+function parse_shadowsocks_link(link) {
+    let working = link;
+    const hash_index = working.indexOf('#');
+    const pre_hash = hash_index >= 0 ? working.slice(0, hash_index) : working;
+    const post_hash = hash_index >= 0 ? working.slice(hash_index) : '';
+
+    if (!pre_hash.includes('@')) {
+        const decoded = decode_base64(pre_hash);
+        if (decoded) {
+            working = decoded + post_hash;
+        }
+    }
+
+    let url;
+    try {
+        url = new URL('http://' + working);
+    } catch (e) {
+        return null;
+    }
+
+    let method = null;
+    let password = null;
+    if (url.username && url.password) {
+        method = url.username;
+        password = decodeURIComponent(url.password);
+    } else if (url.username) {
+        const decoded = decode_base64(decodeURIComponent(url.username));
+        if (!decoded || !decoded.includes(':')) {
+            return null;
+        }
+        const pieces = decoded.split(':');
+        method = pieces.shift();
+        password = pieces.join(':');
+    }
+
+    return finalize_imported_node({
+        alias: decode_label(url.hash ? url.hash.slice(1) : ''),
+        server: url.hostname,
+        server_port: url.port || '8388',
+        protocol: 'shadowsocks',
+        password: password,
+        transport: 'tcp',
+        shadowsocks_security: method
+    });
+}
+
+function parse_share_link(link, allow_insecure) {
+    const trimmed = (link || '').trim();
+    if (!trimmed || !trimmed.includes('://')) {
+        return null;
+    }
+
+    const [scheme, rest] = trimmed.split('://', 2);
+    switch (scheme) {
+        case 'vless':
+            return parse_vless_link(rest, allow_insecure);
+        case 'vmess':
+            return parse_vmess_link(rest, allow_insecure);
+        case 'trojan':
+            return parse_trojan_link(rest, allow_insecure);
+        case 'ss':
+            return parse_shadowsocks_link(rest);
+        default:
+            return null;
+    }
 }
 
 function list_folded_format(config_data, k, noun, max_chars, mapping, empty) {
@@ -91,7 +425,7 @@ function access_control_format(config_data, s, t) {
     };
 }
 
-function check_resource_files(load_result) {
+function check_resource_files(load_result, service_result) {
     let geoip_existence = false;
     let geoip_size = 0;
     let geosite_existence = false;
@@ -102,9 +436,6 @@ function check_resource_files(load_result) {
         if (f.name == "xray") {
             xray_bin_default = true;
         }
-        if (f.name == "xray.pid") {
-            xray_running = true;
-        }
         if (f.name == "geoip.dat") {
             geoip_existence = true;
             geoip_size = '%.2mB'.format(f.size);
@@ -113,6 +444,12 @@ function check_resource_files(load_result) {
             geosite_existence = true;
             geosite_size = '%.2mB'.format(f.size);
         }
+    }
+    if (service_result &&
+        service_result[shared.variant] &&
+        service_result[shared.variant].instances &&
+        service_result[shared.variant].instances.instance1) {
+        xray_running = !!service_result[shared.variant].instances.instance1.running;
     }
     return {
         geoip_existence: geoip_existence,
@@ -129,13 +466,14 @@ return view.extend({
         return Promise.all([
             uci.load(shared.variant),
             fs.list("/usr/share/xray"),
-            network.getHostHints()
+            network.getHostHints(),
+            L.resolveDefault(callServiceList(shared.variant), {})
         ]);
     },
 
     render: function (load_result) {
         const config_data = load_result[0];
-        const { geoip_existence, geoip_size, geosite_existence, geosite_size, xray_bin_default, xray_running } = check_resource_files(load_result[1]);
+        const { geoip_existence, geoip_size, geosite_existence, geosite_size, xray_bin_default, xray_running } = check_resource_files(load_result[1], load_result[3]);
         const status_text = xray_running ? _("[Xray is running]") : _("[Xray is stopped]");
         const hosts = load_result[2].hosts;
 
@@ -177,7 +515,7 @@ return view.extend({
         general_balancer_strategy.default = "random";
         general_balancer_strategy.rmempty = false;
 
-        o = s.taboption('general', form.SectionValue, "xray_servers", form.GridSection, 'servers', _('Xray Servers'), _("Servers are referenced by index (order in the following list). Deleting servers may result in changes of upstream servers actually used by proxy and bridge."));
+        o = s.taboption('general', form.SectionValue, "xray_servers", form.GridSection, 'servers', _('Xray Servers'), _("Servers are referenced by index (order in the following list). Deleting servers may result in changes of upstream servers actually used by proxy."));
         ss = o.subsection;
         ss.sortable = false;
         ss.anonymous = true;
@@ -254,6 +592,73 @@ return view.extend({
         o.monospace = true;
         o.rows = 12;
         o.validate = shared.validate_object;
+
+        ss.handleLinkImport = function() {
+            const textarea = new ui.Textarea();
+            ui.showModal(_('Import share links'), [
+                E('p', _('Support VLESS, VMess, Trojan and Shadowsocks share links. Paste one link per line.')),
+                textarea.render(),
+                E('div', { class: 'right' }, [
+                    E('button', {
+                        class: 'btn',
+                        click: ui.hideModal
+                    }, [ _('Cancel') ]),
+                    ' ',
+                    E('button', {
+                        class: 'btn cbi-button-action',
+                        click: ui.createHandlerFn(this, () => {
+                            const allow_insecure = uci.get_first(shared.variant, 'general', 'subscription_allow_insecure');
+                            const links = Array.from(new Set(
+                                textarea.getValue()
+                                    .split(/\n+/)
+                                    .map(v => v.trim())
+                                    .filter(Boolean)
+                            ));
+
+                            let imported = 0;
+                            for (const link of links) {
+                                const parsed = parse_share_link(link, allow_insecure);
+                                if (!parsed) {
+                                    continue;
+                                }
+
+                                const sid = uci.add(shared.variant, 'servers');
+                                Object.entries(parsed).forEach(([key, value]) => {
+                                    if (value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+                                        uci.set(shared.variant, sid, key, value);
+                                    }
+                                });
+                                imported++;
+                            }
+
+                            if (imported === 0) {
+                                ui.addNotification(null, E('p', _('No valid share link found.')));
+                                return ui.hideModal();
+                            }
+
+                            ui.addNotification(null, E('p', _('Successfully imported %s nodes of total %s.').format(imported, links.length)));
+                            return uci.save()
+                                .then(L.bind(this.map.load, this.map))
+                                .then(L.bind(this.map.reset, this.map))
+                                .then(ui.hideModal);
+                        })
+                    }, [ _('Import') ])
+                ])
+            ]);
+        };
+
+        ss.renderSectionAdd = function() {
+            const el = form.GridSection.prototype.renderSectionAdd.apply(this, arguments);
+            const add = el.querySelector('.cbi-button-add');
+            if (add && add.parentNode) {
+                add.parentNode.appendChild(E('button', {
+                    class: 'cbi-button cbi-button-add',
+                    title: _('Import share links'),
+                    click: ui.createHandlerFn(this, 'handleLinkImport')
+                }, [ _('Import share links') ]));
+            }
+            return el;
+        };
 
         s.tab('inbounds', _('Inbounds'));
 
@@ -583,11 +988,11 @@ return view.extend({
         o.rmempty = false;
 
         o = ss.option(form.Value, "source_port", _("Source Port"), _("Leave empty to forward all ports."));
-        o.textvalue = s => uci.get(config_data, s)?.source_port || _("<i>any</i>");
+        o.textvalue = s => (uci.get(config_data, s) && uci.get(config_data, s).source_port) || _("<i>any</i>");
         o.validate = shared.validate_port_expression;
 
         o = ss.option(form.Value, "dest_addr", _("Destination Address"), _("Leave empty to keep original address unchanged."));
-        o.textvalue = s => uci.get(config_data, s)?.dest_addr || _("<i>original</i>");
+        o.textvalue = s => (uci.get(config_data, s) && uci.get(config_data, s).dest_addr) || _("<i>original</i>");
         o.datatype = "host";
 
         o = ss.option(form.Value, "dest_port", _("Destination Port"), _("Fill <code>0</code> to keep original port unchanged."));
@@ -716,22 +1121,84 @@ return view.extend({
 
         o = s.taboption('extra_options', form.Flag, 'preview_or_deprecated', _('Preview or Deprecated'), _("Show preview or deprecated features (requires reboot to take effect)."));
 
-        o = s.taboption('extra_options', form.SectionValue, "xray_bridge", form.TableSection, 'bridge', _('Bridge'), _('Reverse proxy tool. Currently only client role (bridge) is supported. See <a href="https://xtls.github.io/config/reverse.html#bridgeobject">here</a> for help.'));
+        s.tab('subscription', _('Subscriptions'));
 
-        ss = o.subsection;
-        ss.sortable = false;
-        ss.anonymous = true;
-        ss.addremove = true;
+        o = s.taboption('subscription', form.DynamicList, 'subscription_url', _('Subscription URLs'), _('Paste one subscription URL per item. Supported payloads are plain text or base64-encoded VLESS / VMess / Trojan / Shadowsocks share links.'));
+        o.validate = function(section_id, value) {
+            if (!value) {
+                return true;
+            }
+            try {
+                const url = new URL(value);
+                return !!url.hostname || _('Expecting: %s').format(_('valid URL'));
+            } catch (e) {
+                return _('Expecting: %s').format(_('valid URL'));
+            }
+        };
 
-        let bridge_upstream = ss.option(form.ListValue, "upstream", _("Upstream"));
-        bridge_upstream.datatype = "uciname";
+        o = s.taboption('subscription', form.Value, 'subscription_user_agent', _('Subscription User-Agent'));
+        o.placeholder = 'Wget/1.21 (luci-app-xray)';
 
-        o = ss.option(form.Value, "domain", _("Domain"));
+        o = s.taboption('subscription', form.Flag, 'subscription_allow_insecure', _('Allow insecure for imported TLS nodes'), _('Apply insecure TLS validation to imported VMess / VLESS / Trojan nodes by default.'));
         o.rmempty = false;
 
-        o = ss.option(form.Value, "redirect", _("Redirect address"));
-        o.datatype = "hostport";
-        o.rmempty = false;
+        o = s.taboption('subscription', form.Button, '_save_subscription_settings', _('Save subscriptions settings'), _('Save current configuration before updating subscriptions.'));
+        o.inputstyle = 'apply';
+        o.inputtitle = _('Save current settings');
+        o.onclick = function() {
+            return this.map.save(null, true).then(() => ui.changes.apply(true));
+        };
+
+        o = s.taboption('subscription', form.Button, '_update_subscriptions', _('Update nodes from subscriptions'));
+        o.inputstyle = 'apply';
+        o.inputtitle = function(section_id) {
+            const sublist = normalize_list(uci.get(config_data, section_id, 'subscription_url'));
+            if (sublist.length > 0) {
+                this.readonly = false;
+                return _('Update %s subscriptions').format(sublist.length);
+            }
+            this.readonly = true;
+            return _('No subscription available');
+        };
+        o.onclick = function() {
+            return fs.exec_direct('/usr/share/xray/update_subscriptions.uc').then((res) => {
+                if (res && res.trim()) {
+                    ui.addNotification(null, E('p', res.trim()));
+                }
+                return location.reload();
+            }).catch((err) => {
+                ui.addNotification(null, E('p', _('An error occurred while updating subscriptions: %s').format(err)));
+                return this.map.reset();
+            });
+        };
+
+        o = s.taboption('subscription', form.Button, '_remove_subscription_nodes', _('Remove all subscription nodes'));
+        o.inputstyle = 'reset';
+        o.inputtitle = function() {
+            const subnodes = uci.sections(config_data, 'servers').filter(v => v.subscription_managed === '1');
+            if (subnodes.length > 0) {
+                this.readonly = false;
+                return _('Remove %s nodes').format(subnodes.length);
+            }
+            this.readonly = true;
+            return _('No subscription node');
+        };
+        o.onclick = function() {
+            let removed = 0;
+            uci.sections(config_data, 'servers').forEach((section) => {
+                if (section.subscription_managed === '1') {
+                    uci.remove(shared.variant, section['.name']);
+                    removed++;
+                }
+            });
+            if (removed === 0) {
+                return this.map.reset();
+            }
+            ui.addNotification(null, E('p', _('Removed %s subscription nodes.').format(removed)));
+            return uci.save()
+                .then(L.bind(this.map.load, this.map))
+                .then(L.bind(this.map.reset, this.map));
+        };
 
         s.tab('custom_options', _('Custom Options'));
         let custom_configuration_hook = s.taboption('custom_options', form.TextValue, 'custom_configuration_hook', _('Custom Configuration Hook'), _('Read <a href="https://ucode.mein.io/">ucode Documentation</a> for the language used. Code filled here may need to change after upgrading luci-app-xray.'));
@@ -740,7 +1207,7 @@ return view.extend({
         custom_configuration_hook.rows = 20;
 
         const servers = uci.sections(config_data, "servers");
-        for (let selection of [destination, fake_dns_forward_server_tcp, fake_dns_forward_server_udp, tcp_balancer_v4, tcp_balancer_v6, udp_balancer_v4, udp_balancer_v6, bridge_upstream, force_forward_server_tcp, force_forward_server_udp, dialer_proxy]) {
+        for (let selection of [destination, fake_dns_forward_server_tcp, fake_dns_forward_server_udp, tcp_balancer_v4, tcp_balancer_v6, udp_balancer_v4, udp_balancer_v6, force_forward_server_tcp, force_forward_server_udp, dialer_proxy]) {
             if (servers.length == 0) {
                 selection.value("direct", _("No server configured"));
                 selection.readonly = true;

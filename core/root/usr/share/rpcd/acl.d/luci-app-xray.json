@@ -2,6 +2,16 @@
     "luci-app-xray": {
         "description": "Grant access to xray configurations",
         "read": {
+            "file": {
+                "/usr/share/xray/update_subscriptions.uc": [
+                    "exec"
+                ]
+            },
+            "ubus": {
+                "service": [
+                    "list"
+                ]
+            },
             "uci": [
                 "xray_core"
             ]

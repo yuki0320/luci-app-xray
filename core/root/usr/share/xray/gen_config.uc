@@ -3,7 +3,6 @@
 
 import { access } from "fs";
 import { load_config } from "./common/config.mjs";
-import { bridge_outbounds, bridge_rules, bridges } from "./feature/bridge.mjs";
 import { blocked_domain_rules, dns_conf, dns_rules, dns_server_inbounds, dns_server_outbounds, fast_domain_rules, secure_domain_rules } from "./feature/dns.mjs";
 import { fake_dns_balancers, fake_dns_conf, fake_dns_rules } from "./feature/fake_dns.mjs";
 import { dokodemo_inbound, extra_inbound_balancers, extra_inbound_global, extra_inbound_rules, extra_inbounds, http_inbound, https_inbound, socks_inbound } from "./feature/inbound.mjs";
@@ -58,14 +57,13 @@ function inbounds(proxy, config, extra_inbound) {
     return i;
 }
 
-function outbounds(proxy, config, manual_tproxy, bridge, extra_inbound, fakedns) {
+function outbounds(proxy, config, manual_tproxy, extra_inbound, fakedns) {
     let result = [
         blackhole_outbound(),
         direct_outbound("direct", null, false),
         direct_outbound("dynamic_direct", null, true),
         ...dns_server_outbounds(proxy),
-        ...manual_tproxy_outbounds(config, manual_tproxy),
-        ...bridge_outbounds(config, bridge)
+        ...manual_tproxy_outbounds(config, manual_tproxy)
     ];
     let outbound_balancers_all = {};
     for (let b in ["tcp_balancer_v4", "udp_balancer_v4", "tcp_balancer_v6", "udp_balancer_v6"]) {
@@ -102,7 +100,7 @@ function outbounds(proxy, config, manual_tproxy, bridge, extra_inbound, fakedns)
     return result;
 }
 
-function rules(proxy, bridge, manual_tproxy, extra_inbound, fakedns) {
+function rules(proxy, manual_tproxy, extra_inbound, fakedns) {
     const geoip_existence = access("/usr/share/xray/geoip.dat") || false;
     const tproxy_tcp_inbound_v4_tags = ["tproxy_tcp_inbound_v4"];
     const tproxy_udp_inbound_v4_tags = ["tproxy_udp_inbound_v4"];
@@ -120,7 +118,6 @@ function rules(proxy, bridge, manual_tproxy, extra_inbound, fakedns) {
         ...manual_tproxy_rules(manual_tproxy),
         ...extra_inbound_rules(extra_inbound),
         ...system_route_rules(proxy),
-        ...bridge_rules(bridge),
         ...dns_rules(proxy, [...tproxy_tcp_inbound_v6_tags, ...tproxy_tcp_inbound_v4_tags, ...extra_inbound_global_tcp_tags], [...tproxy_udp_inbound_v6_tags, ...tproxy_udp_inbound_v4_tags, ...extra_inbound_global_udp_tags]),
         ...function () {
             let direct_rules = [];
@@ -254,7 +251,6 @@ function observatory(proxy, manual_tproxy) {
 
 function gen_config() {
     const config = load_config();
-    const bridge = filter(values(config), v => v[".type"] == "bridge") || [];
     const fakedns = filter(values(config), v => v[".type"] == "fakedns") || [];
     const extra_inbound = filter(values(config), v => v[".type"] == "extra_inbound") || [];
     const manual_tproxy = filter(values(config), v => v[".type"] == "manual_tproxy") || [];
@@ -263,7 +259,7 @@ function gen_config() {
     const custom_configuration_hook = loadstring(general["custom_configuration_hook"] || "return i => i;")();
     return custom_configuration_hook({
         inbounds: inbounds(general, config, extra_inbound),
-        outbounds: outbounds(general, config, manual_tproxy, bridge, extra_inbound, fakedns),
+        outbounds: outbounds(general, config, manual_tproxy, extra_inbound, fakedns),
         dns: dns_conf(general, config, manual_tproxy, fakedns),
         fakedns: fake_dns_conf(general),
         api: api_conf(general),
@@ -274,12 +270,9 @@ function gen_config() {
             place: "holder"
         } : null,
         observatory: observatory(general, manual_tproxy),
-        reverse: {
-            bridges: bridges(bridge)
-        },
         routing: {
             domainStrategy: general["routing_domain_strategy"] || "AsIs",
-            rules: rules(general, bridge, manual_tproxy, extra_inbound, fakedns),
+            rules: rules(general, manual_tproxy, extra_inbound, fakedns),
             balancers: balancers(general, extra_inbound, fakedns)
         }
     });

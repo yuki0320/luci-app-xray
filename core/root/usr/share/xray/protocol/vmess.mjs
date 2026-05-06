@@ -19,7 +19,7 @@ export function vmess_outbound(server, tag) {
                             {
                                 email: server["username"],
                                 id: server["password"],
-                                alterId: int(server["alter_id"]),
+                                alterId: int(server["vmess_alter_id"] || 0),
                                 security: server["vmess_security"]
                             }
                         ]

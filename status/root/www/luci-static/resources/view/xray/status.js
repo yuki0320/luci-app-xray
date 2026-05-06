@@ -2,10 +2,18 @@
 'require dom';
 'require fs';
 'require poll';
+'require rpc';
 'require uci';
 'require ui';
 'require view';
 'require view.xray.shared as shared';
+
+const callServiceList = rpc.declare({
+    object: 'service',
+    method: 'list',
+    params: ['name'],
+    expect: { '': {} }
+});
 
 function bool_translate(v) {
     if (v === "1") {
@@ -311,12 +319,29 @@ return view.extend({
     load: function () {
         return Promise.all([
             uci.load(shared.variant),
-            fs.read("/usr/share/xray/version.txt")
+            fs.read("/usr/share/xray/version.txt"),
+            L.resolveDefault(callServiceList(shared.variant), {})
         ]);
     },
 
     render: function (load_result) {
         const config = load_result[0];
+        const service_result = load_result[2];
+        let xray_running = false;
+        if (service_result &&
+            service_result[shared.variant] &&
+            service_result[shared.variant].instances &&
+            service_result[shared.variant].instances.instance1) {
+            xray_running = !!service_result[shared.variant].instances.instance1.running;
+        }
+
+        if (!xray_running) {
+            return E([], [
+                E('h2', _('Xray (status)')),
+                E('p', { 'class': 'cbi-map-descr' }, _("Xray is stopped. Start Xray core to see status details."))
+            ]);
+        }
+
         if (uci.get_first(config, "general", "metrics_server_enable") !== "1") {
             return E([], [
                 E('h2', _('Xray (status)')),
