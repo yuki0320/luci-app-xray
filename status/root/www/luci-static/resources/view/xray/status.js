@@ -327,6 +327,15 @@ return view.extend({
     render: function (load_result) {
         const config = load_result[0];
         const service_result = load_result[2];
+        const version = (load_result[1] || '').trim().split(" ");
+        const version_text = version.length >= 4
+            ? _('Version: %s %s (%s), built %s.').format(
+                version[0],
+                version[1],
+                version[2],
+                new Date(version[3] * 1000).toLocaleString()
+            )
+            : _('Version information is unavailable.');
         let xray_running = false;
         if (service_result &&
             service_result[shared.variant] &&
@@ -338,20 +347,22 @@ return view.extend({
         if (!xray_running) {
             return E([], [
                 E('h2', _('Xray (status)')),
-                E('p', { 'class': 'cbi-map-descr' }, _("Xray is stopped. Start Xray core to see status details."))
+                E('p', { 'class': 'cbi-map-descr' }, _("Xray is stopped. Start Xray core to see status details.")),
+                E('p', { 'class': 'cbi-map-descr' }, version_text)
             ]);
         }
 
         if (uci.get_first(config, "general", "metrics_server_enable") !== "1") {
             return E([], [
                 E('h2', _('Xray (status)')),
-                E('p', { 'class': 'cbi-map-descr' }, _("Xray metrics server not enabled. Enable Xray metrics server to see details."))
+                E('p', { 'class': 'cbi-map-descr' }, _("Xray metrics server not enabled. Enable Xray metrics server to see details.")),
+                E('p', { 'class': 'cbi-map-descr' }, _("Go to Services -> Xray -> Extra Options, enable Xray metrics server, save and apply, then reopen this page.")),
+                E('p', { 'class': 'cbi-map-descr' }, version_text)
             ]);
         }
-        const version = load_result[1].split(" ");
         const stats_available = bool_translate(uci.get_first(config, "general", "stats"));
         const observatory_available = bool_translate(uci.get_first(config, "general", "observatory"));
-        const info = E('p', { 'class': 'cbi-map-descr' }, `${version[0]} Version ${version[1]} (${version[2]}) Built ${new Date(version[3] * 1000).toLocaleString()}. Statistics: ${stats_available}. Observatory: ${observatory_available}.`);
+        const info = E('p', { 'class': 'cbi-map-descr' }, `${version_text} ${_("Statistics")}: ${stats_available}. ${_("Observatory")}: ${observatory_available}.`);
         const detail = E('div', {});
         poll.add(function () {
             fs.exec_direct("/usr/bin/wget", ["-O", "-", `http://127.0.0.1:${uci.get_first(config, "general", "metrics_server_port") || 18888}/debug/vars`], "json").then(function (vars) {
@@ -364,6 +375,8 @@ return view.extend({
                 ]);
                 ui.tabs.initTabGroup(result.lastElementChild.childNodes);
                 dom.content(detail, result);
+            }).catch(function (err) {
+                dom.content(detail, E('p', { 'class': 'cbi-map-descr' }, _('Failed to query Xray metrics endpoint: %s').format(err)));
             });
         });
 

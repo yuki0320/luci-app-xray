@@ -294,7 +294,7 @@ function renderGeoIPResults(results) {
         E('thead', {}, [
             E('tr', { 'class': 'tr table-titles' }, [
                 E('th', { 'class': 'th' }, _('Country Code')),
-                E('th', { 'class': 'th' }, _(`CIDR (${flatResults.length} total)`))
+                E('th', { 'class': 'th' }, _('CIDR (%s total)').format(flatResults.length))
             ])
         ]),
         E('tbody', {}, flatResults.slice(0, maxResults).map(({ entry, cidr }, index) => {
@@ -324,7 +324,7 @@ function renderGeoSiteResults(results) {
         E('thead', {}, [
             E('tr', { 'class': 'tr table-titles' }, [
                 E('th', { 'class': 'th' }, _('Country Code')),
-                E('th', { 'class': 'th' }, _(`Domain (${flatResults.length} total)`))
+                E('th', { 'class': 'th' }, _('Domain (%s total)').format(flatResults.length))
             ])
         ]),
         E('tbody', {}, flatResults.slice(0, maxResults).map(({ entry, domain }, index) =>
@@ -343,14 +343,33 @@ return view.extend({
         return Promise.all([
             new Date(),
             uci.load(shared.variant),
-            fs.read_direct("/usr/share/xray/geoip.dat", "blob").then(v => v.arrayBuffer()),
-            fs.read_direct("/usr/share/xray/geosite.dat", "blob").then(v => v.arrayBuffer()),
+            L.resolveDefault(fs.read_direct("/usr/share/xray/geoip.dat", "blob").then(v => v.arrayBuffer()), null),
+            L.resolveDefault(fs.read_direct("/usr/share/xray/geosite.dat", "blob").then(v => v.arrayBuffer()), null),
         ]);
     },
 
     render: function (load_result) {
-        const geoip_result = decodeGeoIPList(load_result[2]);
-        const geosite_result = decodeGeoSiteList(load_result[3]);
+        if (!load_result[2] || !load_result[3]) {
+            return E([], [
+                E('h2', _('Xray (geodata)')),
+                E('p', { 'class': 'cbi-map-descr' }, _('GeoData files are not readable. Install geodata assets first and make sure ACL allows reading <code>/usr/share/xray/geoip.dat</code> and <code>/usr/share/xray/geosite.dat</code>.')),
+                E('p', { 'class': 'cbi-map-descr' }, _('Suggested command: <code>opkg update && opkg install xray-geodata</code>'))
+            ]);
+        }
+
+        let geoip_result = null;
+        let geosite_result = null;
+        try {
+            geoip_result = decodeGeoIPList(load_result[2]);
+            geosite_result = decodeGeoSiteList(load_result[3]);
+        } catch (e) {
+            return E([], [
+                E('h2', _('Xray (geodata)')),
+                E('p', { 'class': 'cbi-map-descr' }, _('Failed to parse GeoData files. Make sure your geoip.dat and geosite.dat are valid Xray resource files.')),
+                E('pre', { 'class': 'alert-message' }, String(e))
+            ]);
+        }
+
         const result = E([], {}, [
             E('div', {}, [
                 E('div', { 'class': 'cbi-section', 'data-tab': 'geoip', 'data-tab-title': _('GeoIP') }, [
@@ -395,7 +414,6 @@ return view.extend({
                                         const hex = part.padStart(4, '0');
                                         return acc.concat([parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16)]);
                                     }, []);
-                                    console.log(queryIp);
                                 }
                                 const selectedCode = document.getElementById('geoip-select').value;
                                 const results = geoip_result.entry.map(entry => ({
@@ -459,7 +477,12 @@ return view.extend({
 
         return E([], [
             E('h2', _('Xray (geodata)')),
-            E('p', { 'class': 'cbi-map-descr' }, `${_("Only first")} ${maxResults} ${_("results will be shown. Load GeoData files cost")} ${new Date().getTime() - load_result[0].getTime()} ${_("ms")}; ${geoip_result.entry.length} ${_("GeoIP entries")}, ${geosite_result.entry.length} ${_("GeoSite entries")}.`),
+            E('p', { 'class': 'cbi-map-descr' }, _('Only first %s results will be shown. Load GeoData files cost %s ms; %s GeoIP entries, %s GeoSite entries.').format(
+                maxResults,
+                new Date().getTime() - load_result[0].getTime(),
+                geoip_result.entry.length,
+                geosite_result.entry.length
+            )),
             result
         ]);
     },

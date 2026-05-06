@@ -1,0 +1,294 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Project-Id-Version: PACKAGE VERSION\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Xray"
+msgstr "Xray"
+
+msgid "Xray (status)"
+msgstr "Xray（状态）"
+
+msgid "Xray (geodata)"
+msgstr "Xray（地理数据）"
+
+msgid "[Xray is running]"
+msgstr "[Xray 正在运行]"
+
+msgid "[Xray is stopped]"
+msgstr "[Xray 已停止]"
+
+msgid "Xray is stopped. Start Xray core to see status details."
+msgstr "Xray 当前未运行。请先启动 xray_core 服务后再查看状态详情。"
+
+msgid "Xray metrics server not enabled. Enable Xray metrics server to see details."
+msgstr "Xray 指标服务器未启用。启用后才能查看详细状态。"
+
+msgid "Go to Services -> Xray -> Extra Options, enable Xray metrics server, save and apply, then reopen this page."
+msgstr "请前往 服务 -> Xray -> Extra Options，启用 Xray 指标服务器，保存并应用后重新打开此页面。"
+
+msgid "Version information is unavailable."
+msgstr "版本信息不可用。"
+
+msgid "Statistics"
+msgstr "统计"
+
+msgid "Observatory"
+msgstr "观测"
+
+msgid "available"
+msgstr "可用"
+
+msgid "unavailable"
+msgstr "不可用"
+
+msgid "Outbound Statistics"
+msgstr "出站统计"
+
+msgid "Inbound Statistics"
+msgstr "入站统计"
+
+msgid "Data transferred for outbounds since Xray start."
+msgstr "自 Xray 启动以来各出站的流量统计。"
+
+msgid "Data transferred for inbounds since Xray start."
+msgstr "自 Xray 启动以来各入站的流量统计。"
+
+msgid "Tag"
+msgstr "标签"
+
+msgid "Downlink"
+msgstr "下行"
+
+msgid "Uplink"
+msgstr "上行"
+
+msgid "Latency"
+msgstr "延迟"
+
+msgid "Last seen"
+msgstr "最后在线"
+
+msgid "Last check"
+msgstr "最后检查"
+
+msgid "ms"
+msgstr "毫秒"
+
+msgid "s ago"
+msgstr "秒前"
+
+msgid "<i>unreachable</i>"
+msgstr "<i>不可达</i>"
+
+msgid "<i>never</i>"
+msgstr "<i>从未</i>"
+
+msgid "Failed to query Xray metrics endpoint: %s"
+msgstr "查询 Xray 指标接口失败：%s"
+
+msgid "WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. See <a href=\"https://github.com/yichya/luci-app-xray\">here</a> for help."
+msgstr "警告：/usr/share/xray 下至少缺少一个资源文件（geoip.dat、geosite.dat），Xray 可能无法正常工作。帮助请见 <a href=\"https://github.com/yichya/luci-app-xray\">这里</a>。"
+
+msgid "Asset files check: "
+msgstr "资源文件检查："
+
+msgid "Report issues or request for features <a href=\"https://github.com/yichya/luci-app-xray\">here</a>."
+msgstr "提交问题或功能请求请前往 <a href=\"https://github.com/yichya/luci-app-xray\">这里</a>。"
+
+msgid "General Settings"
+msgstr "常规设置"
+
+msgid "Enable Transparent Proxy"
+msgstr "启用透明代理"
+
+msgid "Xray Servers"
+msgstr "Xray 服务器"
+
+msgid "Alias (optional)"
+msgstr "别名（可选）"
+
+msgid "Server Hostname"
+msgstr "服务器地址"
+
+msgid "Server Port"
+msgstr "服务器端口"
+
+msgid "Email / Username"
+msgstr "邮箱 / 用户名"
+
+msgid "UserId / Password"
+msgstr "用户 ID / 密码"
+
+msgid "Protocol Settings"
+msgstr "协议设置"
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Transport Settings"
+msgstr "传输设置"
+
+msgid "Transport"
+msgstr "传输层"
+
+msgid "Dialer Proxy"
+msgstr "拨号代理"
+
+msgid "Disabled"
+msgstr "禁用"
+
+msgid "Custom Options"
+msgstr "自定义选项"
+
+msgid "Custom Configurations"
+msgstr "自定义配置"
+
+msgid "Import share links"
+msgstr "导入分享链接"
+
+msgid "Support VLESS, VMess, Trojan and Shadowsocks share links. Paste one link per line."
+msgstr "支持 VLESS、VMess、Trojan 和 Shadowsocks 分享链接。每行粘贴一个链接。"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Import"
+msgstr "导入"
+
+msgid "No valid share link found."
+msgstr "没有找到有效的分享链接。"
+
+msgid "Successfully imported %s nodes of total %s."
+msgstr "共 %2$s 条链接，成功导入 %1$s 个节点。"
+
+msgid "Subscriptions"
+msgstr "订阅"
+
+msgid "Subscription URLs"
+msgstr "订阅链接"
+
+msgid "Paste one subscription URL per item. Supported payloads are plain text or base64-encoded VLESS / VMess / Trojan / Shadowsocks share links."
+msgstr "每项填写一个订阅链接。支持明文或 Base64 编码的 VLESS / VMess / Trojan / Shadowsocks 分享链接。"
+
+msgid "Subscription User-Agent"
+msgstr "订阅 User-Agent"
+
+msgid "Allow insecure for imported TLS nodes"
+msgstr "对导入的 TLS 节点默认允许不安全连接"
+
+msgid "Apply insecure TLS validation to imported VMess / VLESS / Trojan nodes by default."
+msgstr "对导入的 VMess / VLESS / Trojan 节点默认启用不安全 TLS 校验。"
+
+msgid "Save subscriptions settings"
+msgstr "保存订阅设置"
+
+msgid "Save current configuration before updating subscriptions."
+msgstr "更新订阅前请先保存当前配置。"
+
+msgid "Save current settings"
+msgstr "保存当前设置"
+
+msgid "Update nodes from subscriptions"
+msgstr "从订阅更新节点"
+
+msgid "Update %s subscriptions"
+msgstr "更新 %s 个订阅"
+
+msgid "No subscription available"
+msgstr "没有可用订阅"
+
+msgid "An error occurred while updating subscriptions: %s"
+msgstr "更新订阅时发生错误：%s"
+
+msgid "Remove all subscription nodes"
+msgstr "删除所有订阅节点"
+
+msgid "Remove %s nodes"
+msgstr "删除 %s 个节点"
+
+msgid "No subscription node"
+msgstr "没有订阅节点"
+
+msgid "Removed %s subscription nodes."
+msgstr "已删除 %s 个订阅节点。"
+
+msgid "Inbounds"
+msgstr "入站"
+
+msgid "LAN Hosts Access Control"
+msgstr "局域网主机访问控制"
+
+msgid "DNS"
+msgstr "DNS"
+
+msgid "FakeDNS"
+msgstr "FakeDNS"
+
+msgid "Outbound Routing"
+msgstr "出站路由"
+
+msgid "Manual Transparent Proxy"
+msgstr "手动透明代理"
+
+msgid "HTTPS Server"
+msgstr "HTTPS 服务器"
+
+msgid "Extra Options"
+msgstr "额外选项"
+
+msgid "Enable Xray Metrics Server"
+msgstr "启用 Xray 指标服务器"
+
+msgid "Xray Metrics Server Port"
+msgstr "Xray 指标服务器端口"
+
+msgid "GeoData files are not readable. Install geodata assets first and make sure ACL allows reading <code>/usr/share/xray/geoip.dat</code> and <code>/usr/share/xray/geosite.dat</code>."
+msgstr "GeoData 文件不可读取。请先安装地理数据资源，并确认 ACL 已允许读取 <code>/usr/share/xray/geoip.dat</code> 和 <code>/usr/share/xray/geosite.dat</code>。"
+
+msgid "Suggested command: <code>opkg update && opkg install xray-geodata</code>"
+msgstr "建议执行：<code>opkg update && opkg install xray-geodata</code>"
+
+msgid "Failed to parse GeoData files. Make sure your geoip.dat and geosite.dat are valid Xray resource files."
+msgstr "解析 GeoData 文件失败。请确认 geoip.dat 和 geosite.dat 是有效的 Xray 资源文件。"
+
+msgid "GeoIP"
+msgstr "GeoIP"
+
+msgid "GeoSite"
+msgstr "GeoSite"
+
+msgid "Country Code"
+msgstr "国家/地区代码"
+
+msgid "CIDR (%s total)"
+msgstr "CIDR（共 %s 条）"
+
+msgid "Domain (%s total)"
+msgstr "域名（共 %s 条）"
+
+msgid "Filter GeoIP by Country Code"
+msgstr "按国家/地区代码筛选 GeoIP"
+
+msgid "Filter GeoSite by Country Code"
+msgstr "按国家/地区代码筛选 GeoSite"
+
+msgid "Search GeoIP..."
+msgstr "搜索 GeoIP..."
+
+msgid "Search GeoSite..."
+msgstr "搜索 GeoSite..."
+
+msgid "Search GeoIP"
+msgstr "搜索 GeoIP"
+
+msgid "Search GeoSite"
+msgstr "搜索 GeoSite"
+
+msgid "Only first %s results will be shown. Load GeoData files cost %s ms; %s GeoIP entries, %s GeoSite entries."
+msgstr "仅显示前 %s 条结果。加载 GeoData 文件耗时 %s 毫秒；GeoIP 条目 %s 条，GeoSite 条目 %s 条。"

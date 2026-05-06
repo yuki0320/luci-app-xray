@@ -111,8 +111,8 @@ jobs:
         run: |
           cd "$SDK_HOME"
           make defconfig
-          make package/${PACKAGE_NAME}/{core,geodata,status}/clean
-          make -j"$(nproc)" package/${PACKAGE_NAME}/{core,geodata,status}/compile V=s || make package/${PACKAGE_NAME}/{core,geodata,status}/compile V=s
+          make package/${PACKAGE_NAME}/{core,geodata,status,zh-cn}/clean
+          make -j"$(nproc)" package/${PACKAGE_NAME}/{core,geodata,status,zh-cn}/compile V=s || make package/${PACKAGE_NAME}/{core,geodata,status,zh-cn}/compile V=s
           find "$SDK_HOME/bin/" -type f \( -name "*.ipk" -o -name "*.apk" \) -exec ls -lh {} \;
           cd -
       - name: Copy Bin Files
