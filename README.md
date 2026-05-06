@@ -3,7 +3,7 @@
 Focus on making the most of Xray (HTTP/HTTPS/Socks/TProxy inbounds, multiple protocols support, DNS server, bridge (reverse proxy), even HTTPS proxy server for actual HTTP services) while keeping thin and elegant.
 
 ## Warnings
-
+.   
 * For security concerns, global SOCKS / HTTP inbound (listen on 0.0.0.0, port 1080 / 1081 by default) is deprecated and will be removed in next major version (4.0.0).
     * These settings are moved to preview app
     * Use Extra Inbound to manually add ports (avoid using common ports like 1080, also set listen addresses carefully) and adjust related workloads to use that.
