@@ -19,7 +19,8 @@ Focus on making the most of Xray (HTTP/HTTPS/Socks/TProxy inbounds, multiple pro
 * About experimental REALITY support
     * it may change quite frequently (before the release of official documents about the protocol). Keep in mind for (maybe) breaking changes.
 * If you see `WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly` and don't know what to do:
-    * try `opkg update && opkg install v2ray-geoip v2ray-geosite`
+    * install `luci-app-xray-geodata`, then open `Services -> Xray (geodata)` and click `Update GeoData from Loyalsoldier`
+    * or run `/usr/share/xray/update_geodata.sh` to download assets from [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat)
     * if that doesn't work, see [#52](https://github.com/yichya/luci-app-xray/issues/52#issuecomment-856059905)
 * This project may change its code structure, configuration files format, user interface or dependencies quite frequently since it is still in its very early stage.
 

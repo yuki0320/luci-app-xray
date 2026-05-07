@@ -95,8 +95,8 @@ msgstr "<i>从未</i>"
 msgid "Failed to query Xray metrics endpoint: %s"
 msgstr "查询 Xray 指标接口失败：%s"
 
-msgid "WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. Install <code>v2ray-geoip</code> and <code>v2ray-geosite</code> first, for example: <code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>. See <a href=\"https://github.com/yichya/luci-app-xray\">here</a> for help."
-msgstr "警告：/usr/share/xray 下至少缺少一个资源文件（geoip.dat、geosite.dat），Xray 可能无法正常工作。请先安装 <code>v2ray-geoip</code> 和 <code>v2ray-geosite</code>，例如执行：<code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>。帮助请见 <a href=\"https://github.com/yichya/luci-app-xray\">这里</a>。"
+msgid "WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. Install <code>luci-app-xray-geodata</code>, then open Xray (geodata) and update GeoData from Loyalsoldier/v2ray-rules-dat."
+msgstr "警告：/usr/share/xray 下至少缺少一个资源文件（geoip.dat、geosite.dat），Xray 可能无法正常工作。请先安装 <code>luci-app-xray-geodata</code>，然后打开 Xray（地理数据）并从 Loyalsoldier/v2ray-rules-dat 更新 GeoData。"
 
 msgid "Asset files check: "
 msgstr "资源文件检查："
@@ -260,8 +260,14 @@ msgstr "Xray 指标服务器端口"
 msgid "GeoData files are not readable. Install geodata assets first and make sure ACL allows reading <code>/usr/share/xray/geoip.dat</code> and <code>/usr/share/xray/geosite.dat</code>."
 msgstr "GeoData 文件不可读取。请先安装地理数据资源，并确认 ACL 已允许读取 <code>/usr/share/xray/geoip.dat</code> 和 <code>/usr/share/xray/geosite.dat</code>。"
 
-msgid "Suggested command: <code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>"
-msgstr "建议执行：<code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>"
+msgid "Suggested command: <code>/usr/share/xray/update_geodata.sh</code>"
+msgstr "建议执行：<code>/usr/share/xray/update_geodata.sh</code>"
+
+msgid "Update GeoData from Loyalsoldier"
+msgstr "从 Loyalsoldier 更新 GeoData"
+
+msgid "Failed to update GeoData: %s"
+msgstr "更新 GeoData 失败：%s"
 
 msgid "Failed to parse GeoData files. Make sure your geoip.dat and geosite.dat are valid Xray resource files."
 msgstr "解析 GeoData 文件失败。请确认 geoip.dat 和 geosite.dat 是有效的 Xray 资源文件。"

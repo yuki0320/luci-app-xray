@@ -338,6 +338,22 @@ function renderGeoSiteResults(results) {
     container.appendChild(table);
 }
 
+function renderUpdateButton() {
+    return E('button', {
+        'class': 'cbi-button cbi-button-action',
+        'click': function () {
+            return fs.exec_direct('/usr/share/xray/update_geodata.sh').then((res) => {
+                if (res && res.trim()) {
+                    ui.addNotification(null, E('pre', {}, res.trim()));
+                }
+                window.setTimeout(() => location.reload(), 800);
+            }).catch((err) => {
+                ui.addNotification(null, E('p', _('Failed to update GeoData: %s').format(err)));
+            });
+        }
+    }, _('Update GeoData from Loyalsoldier'));
+}
+
 return view.extend({
     load: function () {
         return Promise.all([
@@ -353,7 +369,8 @@ return view.extend({
             return E([], [
                 E('h2', _('Xray (geodata)')),
                 E('p', { 'class': 'cbi-map-descr' }, _('GeoData files are not readable. Install geodata assets first and make sure ACL allows reading <code>/usr/share/xray/geoip.dat</code> and <code>/usr/share/xray/geosite.dat</code>.')),
-                E('p', { 'class': 'cbi-map-descr' }, _('Suggested command: <code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>'))
+                E('p', { 'class': 'cbi-map-descr' }, _('Suggested command: <code>/usr/share/xray/update_geodata.sh</code>')),
+                E('div', { 'class': 'cbi-section-create' }, [ renderUpdateButton() ])
             ]);
         }
 
@@ -483,6 +500,7 @@ return view.extend({
                 geoip_result.entry.length,
                 geosite_result.entry.length
             )),
+            E('div', { 'class': 'cbi-section-create' }, [ renderUpdateButton() ]),
             result
         ]);
     },

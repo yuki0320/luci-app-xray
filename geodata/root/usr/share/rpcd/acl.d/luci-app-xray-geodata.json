@@ -8,11 +8,21 @@
                 ],
                 "/usr/share/xray/geosite.dat": [
                     "read"
+                ],
+                "/usr/share/xray/update_geodata.sh": [
+                    "exec"
                 ]
             },
             "uci": [
                 "xray_core"
             ]
+        },
+        "write": {
+            "file": {
+                "/usr/share/xray/update_geodata.sh": [
+                    "exec"
+                ]
+            }
         }
     }
 }
