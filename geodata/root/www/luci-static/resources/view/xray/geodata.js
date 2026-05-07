@@ -353,7 +353,7 @@ return view.extend({
             return E([], [
                 E('h2', _('Xray (geodata)')),
                 E('p', { 'class': 'cbi-map-descr' }, _('GeoData files are not readable. Install geodata assets first and make sure ACL allows reading <code>/usr/share/xray/geoip.dat</code> and <code>/usr/share/xray/geosite.dat</code>.')),
-                E('p', { 'class': 'cbi-map-descr' }, _('Suggested command: <code>opkg update && opkg install xray-geodata</code>'))
+                E('p', { 'class': 'cbi-map-descr' }, _('Suggested command: <code>opkg update && opkg install v2ray-geoip v2ray-geosite</code>'))
             ]);
         }
 

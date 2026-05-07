@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-xray-geodata
 PKG_VERSION:=3.7.1
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_LICENSE:=MPLv2
 PKG_LICENSE_FILES:=LICENSE
@@ -15,7 +15,7 @@ define Package/$(PKG_NAME)
 	SECTION:=Custom
 	CATEGORY:=Extra packages
 	TITLE:=LuCI Support for Xray (geodata page)
-	DEPENDS:=luci-app-xray +xray-geodata
+	DEPENDS:=luci-app-xray +v2ray-geoip +v2ray-geosite
 	PKGARCH:=all
 endef
 
