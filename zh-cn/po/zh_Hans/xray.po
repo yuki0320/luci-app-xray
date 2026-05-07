@@ -95,8 +95,8 @@ msgstr "<i>从未</i>"
 msgid "Failed to query Xray metrics endpoint: %s"
 msgstr "查询 Xray 指标接口失败：%s"
 
-msgid "WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. See <a href=\"https://github.com/yichya/luci-app-xray\">here</a> for help."
-msgstr "警告：/usr/share/xray 下至少缺少一个资源文件（geoip.dat、geosite.dat），Xray 可能无法正常工作。帮助请见 <a href=\"https://github.com/yichya/luci-app-xray\">这里</a>。"
+msgid "WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. Install <code>xray-geodata</code> first, for example: <code>opkg update && opkg install xray-geodata</code>. See <a href=\"https://github.com/yichya/luci-app-xray\">here</a> for help."
+msgstr "警告：/usr/share/xray 下至少缺少一个资源文件（geoip.dat、geosite.dat），Xray 可能无法正常工作。请先安装 <code>xray-geodata</code>，例如执行：<code>opkg update && opkg install xray-geodata</code>。帮助请见 <a href=\"https://github.com/yichya/luci-app-xray\">这里</a>。"
 
 msgid "Asset files check: "
 msgstr "资源文件检查："
@@ -154,6 +154,12 @@ msgstr "自定义配置"
 
 msgid "Import share links"
 msgstr "导入分享链接"
+
+msgid "Paste VLESS / VMess / Trojan / Shadowsocks links and create nodes automatically."
+msgstr "粘贴 VLESS / VMess / Trojan / Shadowsocks 链接并自动创建节点。"
+
+msgid "Open importer"
+msgstr "打开导入器"
 
 msgid "Support VLESS, VMess, Trojan and Shadowsocks share links. Paste one link per line."
 msgstr "支持 VLESS、VMess、Trojan 和 Shadowsocks 分享链接。每行粘贴一个链接。"

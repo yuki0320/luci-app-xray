@@ -477,7 +477,7 @@ return view.extend({
         const status_text = xray_running ? _("[Xray is running]") : _("[Xray is stopped]");
         const hosts = load_result[2].hosts;
 
-        let asset_file_status = _('WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. See <a href="https://github.com/yichya/luci-app-xray">here</a> for help.');
+        let asset_file_status = _('WARNING: at least one of asset files (geoip.dat, geosite.dat) is not found under /usr/share/xray. Xray may not work properly. Install <code>xray-geodata</code> first, for example: <code>opkg update && opkg install xray-geodata</code>. See <a href="https://github.com/yichya/luci-app-xray">here</a> for help.');
         if (geoip_existence) {
             if (geosite_existence) {
                 asset_file_status = _('Asset files check: ') + `geoip.dat ${geoip_size}; geosite.dat ${geosite_size}. ` + _('Report issues or request for features <a href="https://github.com/yichya/luci-app-xray">here</a>.');
@@ -493,6 +493,7 @@ return view.extend({
         s.anonymous = true;
 
         s.tab('general', _('General Settings'));
+        s.tab('subscription', _('Subscriptions'));
 
         o = s.taboption('general', form.Flag, 'transparent_proxy_enable', _('Enable Transparent Proxy'), _('Enable integrations with dnsmasq and nftables. To disable luci-app-xray completely, go to <a href="/cgi-bin/luci/admin/system/startup">Startup</a> and disable <code>xray_core</code>.'));
 
@@ -514,6 +515,67 @@ return view.extend({
         general_balancer_strategy.value("roundRobin");
         general_balancer_strategy.default = "random";
         general_balancer_strategy.rmempty = false;
+
+        const handleLinkImport = function(map) {
+            const textarea = new ui.Textarea();
+            ui.showModal(_('Import share links'), [
+                E('p', _('Support VLESS, VMess, Trojan and Shadowsocks share links. Paste one link per line.')),
+                textarea.render(),
+                E('div', { class: 'right' }, [
+                    E('button', {
+                        class: 'btn',
+                        click: ui.hideModal
+                    }, [ _('Cancel') ]),
+                    ' ',
+                    E('button', {
+                        class: 'btn cbi-button-action',
+                        click: ui.createHandlerFn(map, () => {
+                            const allow_insecure = uci.get_first(shared.variant, 'general', 'subscription_allow_insecure');
+                            const links = Array.from(new Set(
+                                textarea.getValue()
+                                    .split(/\n+/)
+                                    .map(v => v.trim())
+                                    .filter(Boolean)
+                            ));
+
+                            let imported = 0;
+                            for (const link of links) {
+                                const parsed = parse_share_link(link, allow_insecure);
+                                if (!parsed) {
+                                    continue;
+                                }
+
+                                const sid = uci.add(shared.variant, 'servers');
+                                Object.entries(parsed).forEach(([key, value]) => {
+                                    if (value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
+                                        uci.set(shared.variant, sid, key, value);
+                                    }
+                                });
+                                imported++;
+                            }
+
+                            if (imported === 0) {
+                                ui.addNotification(null, E('p', _('No valid share link found.')));
+                                return ui.hideModal();
+                            }
+
+                            ui.addNotification(null, E('p', _('Successfully imported %s nodes of total %s.').format(imported, links.length)));
+                            return uci.save()
+                                .then(L.bind(map.load, map))
+                                .then(L.bind(map.reset, map))
+                                .then(ui.hideModal);
+                        })
+                    }, [ _('Import') ])
+                ])
+            ]);
+        };
+
+        o = s.taboption('general', form.Button, '_quick_link_import', _('Import share links'), _('Paste VLESS / VMess / Trojan / Shadowsocks links and create nodes automatically.'));
+        o.inputstyle = 'add';
+        o.inputtitle = _('Open importer');
+        o.onclick = function() {
+            return handleLinkImport(this.map);
+        };
 
         o = s.taboption('general', form.SectionValue, "xray_servers", form.GridSection, 'servers', _('Xray Servers'), _("Servers are referenced by index (order in the following list). Deleting servers may result in changes of upstream servers actually used by proxy."));
         ss = o.subsection;
@@ -594,57 +656,7 @@ return view.extend({
         o.validate = shared.validate_object;
 
         ss.handleLinkImport = function() {
-            const textarea = new ui.Textarea();
-            ui.showModal(_('Import share links'), [
-                E('p', _('Support VLESS, VMess, Trojan and Shadowsocks share links. Paste one link per line.')),
-                textarea.render(),
-                E('div', { class: 'right' }, [
-                    E('button', {
-                        class: 'btn',
-                        click: ui.hideModal
-                    }, [ _('Cancel') ]),
-                    ' ',
-                    E('button', {
-                        class: 'btn cbi-button-action',
-                        click: ui.createHandlerFn(this, () => {
-                            const allow_insecure = uci.get_first(shared.variant, 'general', 'subscription_allow_insecure');
-                            const links = Array.from(new Set(
-                                textarea.getValue()
-                                    .split(/\n+/)
-                                    .map(v => v.trim())
-                                    .filter(Boolean)
-                            ));
-
-                            let imported = 0;
-                            for (const link of links) {
-                                const parsed = parse_share_link(link, allow_insecure);
-                                if (!parsed) {
-                                    continue;
-                                }
-
-                                const sid = uci.add(shared.variant, 'servers');
-                                Object.entries(parsed).forEach(([key, value]) => {
-                                    if (value !== null && value !== undefined && value !== '' && (!Array.isArray(value) || value.length > 0)) {
-                                        uci.set(shared.variant, sid, key, value);
-                                    }
-                                });
-                                imported++;
-                            }
-
-                            if (imported === 0) {
-                                ui.addNotification(null, E('p', _('No valid share link found.')));
-                                return ui.hideModal();
-                            }
-
-                            ui.addNotification(null, E('p', _('Successfully imported %s nodes of total %s.').format(imported, links.length)));
-                            return uci.save()
-                                .then(L.bind(this.map.load, this.map))
-                                .then(L.bind(this.map.reset, this.map))
-                                .then(ui.hideModal);
-                        })
-                    }, [ _('Import') ])
-                ])
-            ]);
+            return handleLinkImport(this.map);
         };
 
         ss.renderSectionAdd = function() {
@@ -1120,8 +1132,6 @@ return view.extend({
         o.placeholder = 512;
 
         o = s.taboption('extra_options', form.Flag, 'preview_or_deprecated', _('Preview or Deprecated'), _("Show preview or deprecated features (requires reboot to take effect)."));
-
-        s.tab('subscription', _('Subscriptions'));
 
         o = s.taboption('subscription', form.DynamicList, 'subscription_url', _('Subscription URLs'), _('Paste one subscription URL per item. Supported payloads are plain text or base64-encoded VLESS / VMess / Trojan / Shadowsocks share links.'));
         o.validate = function(section_id, value) {

@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-xray-zh-cn
 PKG_VERSION:=3.7.1
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_LICENSE:=MPLv2
 PKG_LICENSE_FILES:=LICENSE
@@ -30,6 +30,14 @@ define Build/Compile
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)
 	test -x "$(PO2LMO)" || (echo "po2lmo not found under STAGING_DIR_HOST/STAGING_DIR_HOSTPKG" && exit 1)
 	$(PO2LMO) ./po/zh_Hans/xray.po $(PKG_BUILD_DIR)/xray.zh-cn.lmo
+endef
+
+define Package/$(PKG_NAME)/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	rm -rf /tmp/luci-indexcache* /tmp/luci-modulecache
+fi
+exit 0
 endef
 
 define Package/$(PKG_NAME)/install
